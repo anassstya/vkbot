@@ -8,6 +8,7 @@ import (
 	"github.com/anassstya/vkbot/internal/db"
 	"github.com/anassstya/vkbot/internal/handler"
 	"github.com/anassstya/vkbot/internal/repository"
+	"github.com/anassstya/vkbot/internal/scheduler"
 	"github.com/joho/godotenv"
 	botgolang "github.com/mail-ru-im/bot-golang"
 )
@@ -40,8 +41,15 @@ func main() {
 	userRepo := repository.NewUserRepo(pool)
 	h := handler.NewHandler(userRepo, bot)
 
+	if err := userRepo.EnsureWelcomeTrigger(ctx); err != nil {
+		log.Printf("Ошибка создания welcome триггера: %v", err)
+	}
+
 	cancelCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	sched := scheduler.NewScheduler(userRepo, bot)
+	go sched.Start(ctx)
 
 	updates := bot.GetUpdatesChannel(cancelCtx)
 
@@ -58,10 +66,5 @@ func main() {
 		case botgolang.CALLBACK_QUERY:
 			h.HandleCallback(ctx, chatID, name, update.Payload.CallbackData, msg.ID)
 		}
-
-		//msg := bot.NewTextMessage(chatID, "re")
-		//if err := msg.Send(); err != nil {
-		//	log.Printf("Ошибка отправки сообщения %s: %v", chatID, err)
-		//}
 	}
 }

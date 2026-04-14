@@ -2,20 +2,20 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//type User struct {
-//	ID         int
-//	ChatID     string
-//	Name       string
-//	Role       string
-//	Gender     string
-//	Department string
-//	LastSeen   string
-//	CreatedAt  time.Time
-//}
+type User struct {
+	ID         int
+	ChatID     string
+	Name       string
+	Role       string
+	Gender     string
+	Department string
+	CreatedAt  time.Time
+}
 
 type UserRepo struct {
 	db *pgxpool.Pool
@@ -67,4 +67,21 @@ func (r *UserRepo) GetRole(ctx context.Context, chatID string) (string, error) {
 		`SELECT role FROM users WHERE chat_id = $1`, chatID).Scan(&role)
 
 	return role, err
+}
+
+func (r *UserRepo) GetUser(ctx context.Context, chatID string) (User, error) {
+	var u User
+	err := r.db.QueryRow(ctx, `
+        SELECT chat_id, name, 
+               COALESCE(role, ''),
+               COALESCE(gender, ''),
+               COALESCE(department, ''),
+               created_at
+        FROM users
+        WHERE chat_id = $1
+    `, chatID).Scan(&u.ChatID, &u.Name, &u.Role, &u.Gender, &u.Department, &u.CreatedAt)
+	if err != nil {
+		return User{}, err
+	}
+	return u, nil
 }
